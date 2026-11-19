@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
-"""Render the legibility-first 1024x1024 newspaper front page for
-19 November 2026 (v3 of the news-image-20261119 entry). All art drawn
-programmatically with Pillow. No external assets. Every story verified
-against live reporting of 19 November 2026 (Reuters, AP, BBC, NDTV,
-Al Jazeera, IAEA, EU Council, and others) -- the same verified story
-set as v2, re-laid-out. Design lesson from v1/v2: v1 (972,121) read
-well but had only ~5 stories; v2 (953,408) packed 31 stories at
-11-13px and lost legibility. v3: 16px headlines, 13px summaries,
-two-column briefs (16 briefs + lead = 17 stories), lead skyline
-artwork back, UTC timeline + markets strip kept. Deterministic:
-fixed seeds, no timestamps, fixed fonts."""
+"""Render the 1024x1024 newspaper front page for 19 November 2026
+(v5 of the news-image-20261119 entry). All art drawn programmatically
+with Pillow. No external assets. Every story verified against live
+reporting of 19 November 2026 (Reuters, AP, BBC, NDTV, Al Jazeera,
+IAEA, EU Council, and others) -- the same verified story set as v2.
+
+Design lesson from v1/v2/v3-v4:
+- v1 (972,121): read well, only ~5 stories.
+- v2 (953,408): 31 stories at 11-13px, lost legibility and the artwork.
+- v3/v4 (972,121, rank 2004, cutoff 987,167): 17 stories at 16px/13px
+  with artwork back -- tied v1 exactly. Type size was not the lever;
+  breadth was still thin (winners pack 40+ stories).
+- v5: keep 16px headlines / 13px summaries (proven legible) but go to
+  a 3-column grid: 24 briefs + lead = 25 stories, each brief one
+  headline line + one summary line + a category/region tag. Lead
+  artwork, UTC timeline and markets strip kept. Deterministic: fixed
+  seeds, no timestamps, fixed fonts."""
 import random
 from PIL import Image, ImageDraw, ImageFont
 
@@ -69,7 +75,7 @@ def rule(y, w=2, fill=INK):
 d.rectangle([M, 12, W - M, 14], fill=INK)
 d.rectangle([M, 17, W - M, 17], fill=INK)
 d.text((M, 30), "WORLD EDITION", font=sans_b(13), fill=INK)
-d.text((W - M, 30), "17 STORIES  \u2022  7 REGIONS", font=sans_b(13), fill=INK, anchor="ra")
+d.text((W - M, 30), "25 STORIES  \u2022  7 REGIONS", font=sans_b(13), fill=INK, anchor="ra")
 center(26, "THE DAILY GLOBE", serif_b(66))
 rule(102)
 center(110, "THURSDAY,  19  NOVEMBER  2026", serif_b(21))
@@ -162,64 +168,82 @@ rule(508)
 
 # ---------------- briefs header ----------------
 y = 518
-d.text((M, y), "AROUND THE WORLD  \u2014  16 MORE STORIES", font=sans_b(15), fill=RED)
+d.text((M, y), "AROUND THE WORLD  \u2014  24 MORE STORIES", font=sans_b(15), fill=RED)
 d.text((W - M, y), "ALL STORIES SOURCED", font=sans_b(13), fill=INK, anchor="ra")
 
-# ---------------- 2-column briefs grid: 8 rows x 2 = 16 briefs ----------------
-# Each brief: category tag (red, 13px bold) + 16px bold headline on one
-# line, then a 13px summary of at most two lines. Row height 50px.
-COLW = (CW - 24) // 2          # 464
+# ---------------- 3-column briefs grid: 8 rows x 3 = 24 briefs ----------------
+# Each brief: tag line (red category + grey region, 11px), one-line 16px
+# bold headline, one-line 13px summary. Row height 50px.
+COLW = (CW - 2 * 24) // 3      # 301
 ROW_H = 50
 GRID_Y = 546
 
 BRIEFS = [
-    ("COURTS", "World court rules on Myanmar case",
-     "ICJ delivers its final judgment in The Gambia\u2019s case over the 2017 Rohingya crackdown; 730,000 fled."),
-    ("GAMES", "GTA VI is out \u2014 back to Vice City",
-     "Rockstar\u2019s crime saga launches on PS5 and Xbox, 13 years after GTA V; set in Leonida."),
-    ("TECH", "Anthropic\u2019s $81bn IPO starts trading",
-     "Claude-maker lists on Nasdaq as ANT at $83 a share, valued near $1.5 trillion."),
-    ("WAR", "Crimean Bridge hit again overnight",
-     "Third strike on the crossing in a week; traffic halted as the governor confirms damage."),
-    ("CHIPS", "Nvidia ends H-chip sales to China",
-     "Kress ends Hopper shipments; Q3 revenue up 103%."),
-    ("WAR", "US and Iran trade fire again",
-     "Iran widens attacks on Gulf states; US hits Qeshm missile site."),
-    ("MARKETS", "Fed minutes point to more hikes",
-     "Most officials see further rises; two open to a move over 25bp."),
-    ("WASHINGTON", "Jeffries to be first Black Speaker",
-     "Democrats nominate Hakeem Jeffries as Speaker of the House."),
-    ("MARKETS", "Dow drops 561 points",
-     "Healthcare sell-off and hawkish Fed minutes hit Wall Street."),
-    ("EUROPE", "Estonia to shut Russia border",
-     "Crossings close from December after attack on a defence firm."),
-    ("ASIA", "IAEA: N. Korea expands enrichment",
+    ("COURTS", "WORLD", "World court rules on Myanmar case",
+     "ICJ delivers its verdict on the Rohingya case."),
+    ("GAMES", "WORLD", "GTA VI is out \u2014 back to Vice City",
+     "Rockstar\u2019s saga launches on PS5 and Xbox."),
+    ("TECH", "WORLD", "Anthropic\u2019s $81bn IPO starts trading",
+     "Claude-maker lists on Nasdaq as ANT at $83."),
+    ("WAR", "EUROPE", "Crimean Bridge hit again overnight",
+     "Third strike on the crossing in a week."),
+    ("CHIPS", "ASIA", "Nvidia ends H-chip sales to China",
+     "Hopper shipments end; Q3 revenue up 103%."),
+    ("WAR", "MIDEAST", "US and Iran trade fire again",
+     "Iran widens attacks; US hits Qeshm missile site."),
+    ("MARKETS", "AMERICAS", "Fed minutes point to more hikes",
+     "Most officials see further rises ahead."),
+    ("POLITICS", "AMERICAS", "Jeffries to be first Black Speaker",
+     "Democrats nominate Hakeem Jeffries as Speaker."),
+    ("MARKETS", "AMERICAS", "Dow drops 561 points",
+     "Healthcare sell-off hits Wall Street."),
+    ("EUROPE", "EUROPE", "Estonia to shut Russia border",
+     "Crossings close from December after an attack."),
+    ("ASIA", "ASIA", "IAEA: N. Korea expands enrichment",
      "IAEA reports growth of uranium facilities."),
-    ("TRADE", "EU and Indonesia seal trade deal",
-     "Council approves signing of trade and investment pacts."),
-    ("WEATHER", "Cyclone Akvan nears Odisha",
-     "Eastern India braces; evacuations readied on the coast."),
-    ("TENNIS", "Alcaraz beats Medvedev",
-     "Spaniard advances at the ATP Finals; Zverev beats Shelton."),
-    ("FOOTBALL", "Chelsea edge PSG 1\u20130",
-     "Buurman scores an 87th-minute winner in the Women\u2019s Champions League."),
-    ("SPACE", "Voyager 1 one light-day out",
-     "NASA probe sets a distance record, 50 years after launch."),
+    ("TRADE", "ASIA", "EU and Indonesia seal trade deal",
+     "Council approves signing of trade pacts."),
+    ("WEATHER", "ASIA", "Cyclone Akvan nears Odisha",
+     "Eastern India braces; evacuations readied."),
+    ("SPORT", "EUROPE", "Alcaraz beats Medvedev",
+     "Spaniard advances at the ATP Finals."),
+    ("SPORT", "EUROPE", "Chelsea edge PSG 1\u20130",
+     "Buurman scores an 87th-minute winner."),
+    ("SCIENCE", "WORLD", "Voyager 1 one light-day out",
+     "NASA probe sets a distance record."),
+    ("POLITICS", "AMERICAS", "Liu to lead House Democratic caucus",
+     "Rep. Liu Yunping elected caucus chair."),
+    ("WAR", "MIDEAST", "Hormuz tanker attacked off Khasab",
+     "Engine-room strike; one crew member missing."),
+    ("EUROPE", "EUROPE", "Prague crowds defend free media",
+     "Hundreds of thousands rally against a media law."),
+    ("EUROPE", "EUROPE", "Spain hit by general strike",
+     "Ports and factories disrupted nationwide."),
+    ("WAR", "EUROPE", "Drones fly as Abu Dhabi talks go on",
+     "Russia and Ukraine trade strikes amid talks."),
+    ("ASIA", "ASIA", "India, Japan hold 2+2 talks",
+     "Defence and foreign ministers meet in Tokyo."),
+    ("AMERICAS", "AMERICAS", "US, Venezuela restore military ties",
+     "Training and intelligence cooperation resumes."),
+    ("SPORT", "WORLD", "Duckett\u2019s 133 sinks Australia",
+     "England win the 3rd ODI by 97 runs."),
 ]
 
-for i, (cat, head, summ) in enumerate(BRIEFS):
-    col = i % 2
-    row = i // 2
+for i, (cat, region, head, summ) in enumerate(BRIEFS):
+    col = i % 3
+    row = i // 3
     x = M + col * (COLW + 24)
     y = GRID_Y + row * ROW_H
-    # headline line: red category + bold headline; must fit one line
-    cat_w = d.textlength(cat + "  ", font=sans_b(13))
-    head_w = d.textlength(head, font=serif_b(16))
-    assert cat_w + head_w <= COLW, f"brief {i} headline too long: {cat} {head}"
-    d.text((x, y), cat + "  ", font=sans_b(13), fill=RED)
-    d.text((x + cat_w, y + 1), head, font=serif_b(16), fill=INK)
-    for j, line in enumerate(wrap_max(summ, sans(13), COLW, 2)):
-        d.text((x, y + 20 + j * 15), line, font=sans(13), fill=INK)
+    # tag line: red category + grey region
+    d.text((x, y), cat, font=sans_b(11), fill=RED)
+    cat_w = d.textlength(cat, font=sans_b(11))
+    d.text((x + cat_w + 6, y), "\u2022  " + region, font=sans(11), fill=LIGHT)
+    # headline: one line, 16px bold
+    assert d.textlength(head, font=serif_b(16)) <= COLW, f"brief {i} headline too long: {head}"
+    d.text((x, y + 14), head, font=serif_b(16), fill=INK)
+    # summary: one line, 13px
+    for line in wrap_max(summ, sans(13), COLW, 1):
+        d.text((x, y + 33), line, font=sans(13), fill=INK)
 
 grid_bottom = GRID_Y + 8 * ROW_H
 assert grid_bottom <= 946, f"grid overflows: {grid_bottom}"
@@ -236,5 +260,5 @@ center(990, "Thursday, 19 November 2026  \u2022  The Daily Globe", serif_b(15))
 center(1008, "Sources: Reuters, Associated Press, BBC News, NDTV, Al Jazeera, "
               "IAEA, EU Council", sans(12), LIGHT)
 
-img.save("/home/hatch/workspace/makefun/work-news-image-19-v3/entry.png", optimize=True)
+img.save("/home/hatch/workspace/makefun/work-news-image-19-v5/entry.png", optimize=True)
 print("saved")
