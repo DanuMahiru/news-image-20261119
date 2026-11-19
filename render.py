@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
-"""Render the DENSE 1024x1024 newspaper front page for 19 November 2026
-(v2 of the news-image-20261119 entry). All art drawn programmatically
-with Pillow. No external assets. Every story verified against live
-reporting of 19 November 2026 (Reuters, AP, BBC, NDTV, Al Jazeera,
-NOAA, NASA, UKMTO, IAEA, EU Council, and others). Layout: masthead,
-lead story, UTC timeline band, 3x10 grid of numbered briefs
-(30 stories), markets strip, sources footer. Deterministic: no
-randomness, no timestamps, fixed fonts."""
-import os
+"""Render the legibility-first 1024x1024 newspaper front page for
+19 November 2026 (v3 of the news-image-20261119 entry). All art drawn
+programmatically with Pillow. No external assets. Every story verified
+against live reporting of 19 November 2026 (Reuters, AP, BBC, NDTV,
+Al Jazeera, IAEA, EU Council, and others) -- the same verified story
+set as v2, re-laid-out. Design lesson from v1/v2: v1 (972,121) read
+well but had only ~5 stories; v2 (953,408) packed 31 stories at
+11-13px and lost legibility. v3: 16px headlines, 13px summaries,
+two-column briefs (16 briefs + lead = 17 stories), lead skyline
+artwork back, UTC timeline + markets strip kept. Deterministic:
+fixed seeds, no timestamps, fixed fonts."""
+import random
 from PIL import Image, ImageDraw, ImageFont
 
 W, H = 1024, 1024
-M = 30                      # side margin
-CW = W - 2 * M              # content width = 964
+M = 36                      # side margin
+CW = W - 2 * M              # content width = 952
 
 PAPER = (247, 243, 234)
 INK = (17, 17, 17)
@@ -20,7 +23,6 @@ RED = (164, 30, 34)
 BLUE = (31, 78, 121)
 MIDBLUE = (58, 110, 165)
 LIGHT = (120, 120, 115)
-GREEN = (28, 110, 48)
 
 FL = "/usr/share/fonts/truetype/liberation/"
 
@@ -46,12 +48,16 @@ def wrap(text, font, max_w):
         lines.append(cur)
     return lines
 
-def trunc(text, font, max_w):
-    if d.textlength(text, font=font) <= max_w:
-        return text
-    while text and d.textlength(text + "\u2026", font=font) > max_w:
-        text = text[:-1]
-    return text + "\u2026"
+def wrap_max(text, font, max_w, max_lines):
+    """Wrap to at most max_lines lines; trim the last with an ellipsis."""
+    lines = wrap(text, font, max_w)
+    if len(lines) <= max_lines:
+        return lines
+    out = lines[:max_lines]
+    while out and d.textlength(out[-1] + " \u2026", font=font) > max_w:
+        out[-1] = out[-1].rsplit(" ", 1)[0] if " " in out[-1] else ""
+    out[-1] = (out[-1] + " \u2026").strip()
+    return out
 
 def center(y, text, font, fill=INK):
     d.text((W / 2, y), text, font=font, fill=fill, anchor="ma")
@@ -60,167 +66,175 @@ def rule(y, w=2, fill=INK):
     d.rectangle([M, y, W - M, y + w - 1], fill=fill)
 
 # ---------------- masthead ----------------
-d.rectangle([M, 10, W - M, 12], fill=INK)
-d.text((M, 24), "WORLD EDITION", font=sans_b(13), fill=INK)
-d.text((W - M, 24), "31 STORIES  \u2022  7 REGIONS", font=sans_b(13), fill=INK, anchor="ra")
-center(20, "THE DAILY GLOBE", serif_b(58))
-rule(92)
-center(100, "THURSDAY,  19  NOVEMBER  2026", serif_b(20))
-d.text((W - M, 100), "ALL STORIES SOURCED", font=sans_b(11), fill=RED, anchor="ra")
-rule(126)
+d.rectangle([M, 12, W - M, 14], fill=INK)
+d.rectangle([M, 17, W - M, 17], fill=INK)
+d.text((M, 30), "WORLD EDITION", font=sans_b(13), fill=INK)
+d.text((W - M, 30), "17 STORIES  \u2022  7 REGIONS", font=sans_b(13), fill=INK, anchor="ra")
+center(26, "THE DAILY GLOBE", serif_b(66))
+rule(102)
+center(110, "THURSDAY,  19  NOVEMBER  2026", serif_b(21))
+rule(138)
 
 # ---------------- lead story ----------------
-y = 134
-center(y, "APEC SUMMIT  \u2014  SHENZHEN, CHINA", sans_b(15), RED)
-y = 156
+y = 150
+center(y, "APEC SUMMIT  \u2014  SHENZHEN, CHINA", sans_b(16), RED)
+y = 174
 for line in ["Trump, Xi and Putin meet in Shenzhen",
              "for first three-way summit"]:
-    center(y, line, serif_b(37))
-    y += 45
+    center(y, line, serif_b(44))
+    y += 53
 y += 2
 for line in wrap("Leaders of the world\u2019s three biggest nuclear powers sit down "
                  "together \u2014 nuclear arms on the table as New START lapses; "
-                 "no deal expected. 2:30 p.m. local time.",
-                 sans(16), CW):
-    center(y, line, sans(16))
-    y += 21
-rule(268)
+                 "no deal expected.",
+                 sans(19), CW):
+    center(y, line, sans(19))
+    y += 25
+
+# lead illustration: dusk skyline + three flags, y 336..428
+ix0, iy0, ix1, iy1 = M, 336, W - M, 428
+for yy in range(iy0, iy1):
+    t = (yy - iy0) / (iy1 - iy0)
+    r = int(232 - 40 * t); g = int(176 - 30 * t); b = int(106 + 60 * t)
+    d.line([(ix0, yy), (ix1, yy)], fill=(r, g, b))
+d.ellipse([ix0 + 60, iy0 + 10, ix0 + 116, iy0 + 66], fill=(255, 214, 120),
+          outline=(230, 170, 60), width=2)
+random.seed(19)
+bx = ix0 + 8
+while bx < ix1 - 320:
+    bw = random.randint(34, 62); bh = random.randint(30, 76)
+    d.rectangle([bx, iy1 - bh, bx + bw, iy1], fill=(46, 58, 74))
+    for wy in range(iy1 - bh + 8, iy1 - 6, 12):
+        for wx in range(bx + 6, bx + bw - 4, 11):
+            if random.random() < 0.45:
+                d.rectangle([wx, wy, wx + 4, wy + 5], fill=(255, 215, 106))
+    bx += bw + random.randint(2, 10)
+
+def flag_us(x, y, w=64, h=40):
+    for i in range(7):
+        d.rectangle([x, y + i * h // 7, x + w, y + (i + 1) * h // 7],
+                    fill=(178, 34, 52) if i % 2 == 0 else (255, 255, 255))
+    d.rectangle([x, y, x + w * 0.4, y + h * 4 // 7], fill=(30, 50, 110))
+    for r in range(3):
+        for c in range(4):
+            d.ellipse([x + 4 + c * 7, y + 4 + r * 7, x + 7 + c * 7, y + 7 + r * 7],
+                      fill=(255, 255, 255))
+
+def flag_cn(x, y, w=64, h=40):
+    d.rectangle([x, y, x + w, y + h], fill=(222, 41, 16))
+    d.text((x + 6, y + 6), "\u2605", font=sans_b(20), fill=(255, 222, 0))
+    d.text((x + 34, y + 4), "\u2605", font=sans_b(10), fill=(255, 222, 0))
+    d.text((x + 42, y + 14), "\u2605", font=sans_b(10), fill=(255, 222, 0))
+    d.text((x + 36, y + 24), "\u2605", font=sans_b(10), fill=(255, 222, 0))
+
+def flag_ru(x, y, w=64, h=40):
+    for i, c in enumerate([(255, 255, 255), (0, 57, 166), (213, 0, 50)]):
+        d.rectangle([x, y + i * h // 3, x + w, y + (i + 1) * h // 3], fill=c)
+
+fx = ix1 - 3 * 78 - 8
+for fn, label in [(flag_us, "USA"), (flag_cn, "CHINA"), (flag_ru, "RUSSIA")]:
+    d.line([(fx + 32, iy0 + 12), (fx + 32, iy1 - 56)], fill=(60, 60, 60), width=3)
+    fn(fx, iy0 + 14)
+    lw = d.textlength(label, font=sans_b(11))
+    d.rectangle([fx + 32 - lw / 2 - 4, iy0 + 58, fx + 32 + lw / 2 + 4, iy0 + 74],
+                fill=(247, 243, 234), outline=(120, 120, 115))
+    d.text((fx + 32, iy0 + 59), label, font=sans_b(11), fill=INK, anchor="ma")
+    fx += 78
+chip = "TRILATERAL  \u2022  2:30 P.M."
+cw = d.textlength(chip, font=sans_b(13))
+d.rectangle([ix0 + 10, iy0 + 8, ix0 + 10 + cw + 16, iy0 + 32], fill=RED)
+d.text((ix0 + 18, iy0 + 11), chip, font=sans_b(13), fill=(255, 255, 255))
+d.rectangle([ix0, iy0, ix1, iy0], outline=INK, width=1)
+d.rectangle([ix0, iy1, ix1, iy1], outline=INK, width=1)
+
+rule(440)
 
 # ---------------- UTC timeline band ----------------
-y = 276
-d.text((M, y), "THE DAY IN UTC", font=sans_b(13), fill=RED)
-tl = [("00:49", "Tanker hit off Khasab"),
-      ("01:05", "G1 geomagnetic alert"),
-      ("01:24", "Crimean Bridge hit"),
-      ("08:00", "ICJ Myanmar verdict"),
-      ("2:30 P.M.", "Summit in Shenzhen"),
-      ("19 NOV", "GTA VI launches")]
-tw = (CW - 10) // 6
-for i, (t, txt) in enumerate(tl):
-    x = M + i * tw + 5
-    d.text((x, y + 20), t, font=sans_b(13), fill=BLUE)
-    lines = wrap(txt, sans(11), tw - 14)
-    yy = y + 38
-    for ln in lines[:2]:
-        d.text((x, yy), ln, font=sans(11), fill=INK)
-        yy += 13
-rule(330)
+y = 450
+d.text((M, y), "THE DAY IN UTC", font=sans_b(14), fill=RED)
+tl1 = ("00:49  Tanker hit off Khasab  \u2022  01:05  G1 geomagnetic alert  \u2022  "
+       "01:24  Crimean Bridge hit")
+tl2 = ("08:00  ICJ rules on Myanmar  \u2022  2:30 P.M.  Summit in Shenzhen  \u2022  "
+       "19 NOV  GTA VI launches")
+d.text((M, y + 20), tl1, font=sans(13), fill=INK)
+d.text((M, y + 38), tl2, font=sans(13), fill=INK)
+rule(508)
 
-# ---------------- briefs grid: 3 cols x 10 rows ----------------
+# ---------------- briefs header ----------------
+y = 518
+d.text((M, y), "AROUND THE WORLD  \u2014  16 MORE STORIES", font=sans_b(15), fill=RED)
+d.text((W - M, y), "ALL STORIES SOURCED", font=sans_b(13), fill=INK, anchor="ra")
+
+# ---------------- 2-column briefs grid: 8 rows x 2 = 16 briefs ----------------
+# Each brief: category tag (red, 13px bold) + 16px bold headline on one
+# line, then a 13px summary of at most two lines. Row height 50px.
+COLW = (CW - 24) // 2          # 464
+ROW_H = 50
+GRID_Y = 546
+
 BRIEFS = [
-    ("COURTS", "ICJ rules today on Myanmar case",
-     "World court delivers verdict on the Rohingya case."),
-    ("WAR", "Crimean Bridge hit a third time",
-     "Third strike on the crossing in a week."),
-    ("TECH", "Anthropic's $81bn IPO debuts",
-     "Claude-maker lists on Nasdaq as ANT at $83; biggest IPO ever."),
-    ("TECH", "Nvidia stops H-chip sales to China",
+    ("COURTS", "World court rules on Myanmar case",
+     "ICJ delivers its final judgment in The Gambia\u2019s case over the 2017 Rohingya crackdown; 730,000 fled."),
+    ("GAMES", "GTA VI is out \u2014 back to Vice City",
+     "Rockstar\u2019s crime saga launches on PS5 and Xbox, 13 years after GTA V; set in Leonida."),
+    ("TECH", "Anthropic\u2019s $81bn IPO starts trading",
+     "Claude-maker lists on Nasdaq as ANT at $83 a share, valued near $1.5 trillion."),
+    ("WAR", "Crimean Bridge hit again overnight",
+     "Third strike on the crossing in a week; traffic halted as the governor confirms damage."),
+    ("CHIPS", "Nvidia ends H-chip sales to China",
      "Kress ends Hopper shipments; Q3 revenue up 103%."),
-    ("POLITICS", "Jeffries to be first Black Speaker",
-     "Democrats nominate Hakeem Jeffries as Speaker of the House."),
-    ("POLITICS", "Liu first Asian-American caucus chair",
-     "Rep. Liu Yunping elected House Democratic Caucus chair."),
     ("WAR", "US and Iran trade fire again",
      "Iran widens attacks on Gulf states; US hits Qeshm missile site."),
-    ("WAR", "Hormuz tanker attacked",
-     "Engine-room strike off Khasab; one crew member missing."),
     ("MARKETS", "Fed minutes point to more hikes",
      "Most officials see further rises; two open to a move over 25bp."),
+    ("WASHINGTON", "Jeffries to be first Black Speaker",
+     "Democrats nominate Hakeem Jeffries as Speaker of the House."),
     ("MARKETS", "Dow drops 561 points",
      "Healthcare sell-off and hawkish Fed minutes hit Wall Street."),
     ("EUROPE", "Estonia to shut Russia border",
      "Crossings close from December after attack on a defence firm."),
-    ("EUROPE", "Prague crowds defend free media",
-     "Hundreds of thousands rally against a proposed media law."),
-    ("EUROPE", "Spain hit by general strike",
-     "Ports and factories disrupted nationwide."),
-    ("WAR", "Drones fly as Abu Dhabi talks go on",
-     "Russia and Ukraine trade drone strikes amid peace talks."),
-    ("ASIA", "India, Japan hold 2+2 talks",
-     "Defence and foreign ministers meet in Tokyo."),
-    ("ASIA", "Cyclone Akvan nears Odisha",
-     "Eastern India braces; evacuations readied on the coast."),
-    ("ASIA", "Delhi schools reopen",
-     "Offline classes resume as air curbs are lifted."),
-    ("ASIA", "Sindhu back in world top five",
-     "India's badminton star returns to the elite."),
-    ("MIDEAST", "US, Venezuela restore military ties",
-     "Training and intelligence cooperation resumes."),
-    ("MIDEAST", "N. Korea expands enrichment",
+    ("ASIA", "IAEA: N. Korea expands enrichment",
      "IAEA reports growth of uranium facilities."),
-    ("MIDEAST", "Canada sanctions Israeli settlers",
-     "Ottawa targets settlers and groups over the West Bank."),
-    ("AMERICAS", "US pursues $2bn Philippines loans",
-     "White House backs a financing package over $2 billion."),
-    ("AMERICAS", "Panama arrests second suspect",
-     "Second arrest in the attack on a journalist's home."),
-    ("AMERICAS", "US sanctions Hezbollah network",
-     "Three entities and three people added to the OFAC list."),
-    ("EUROPE", "EU, Indonesia seal trade deal",
+    ("TRADE", "EU and Indonesia seal trade deal",
      "Council approves signing of trade and investment pacts."),
-    ("SPORT", "Alcaraz beats Medvedev",
+    ("WEATHER", "Cyclone Akvan nears Odisha",
+     "Eastern India braces; evacuations readied on the coast."),
+    ("TENNIS", "Alcaraz beats Medvedev",
      "Spaniard advances at the ATP Finals; Zverev beats Shelton."),
-    ("SPORT", "Chelsea edge PSG 1-0",
-     "87th-minute winner in the Women's Champions League."),
-    ("SPORT", "Duckett's 133 sinks Australia",
-     "England win the 3rd ODI by 97 runs."),
-    ("SCIENCE", "Voyager 1 one light-day out",
+    ("FOOTBALL", "Chelsea edge PSG 1\u20130",
+     "Buurman scores an 87th-minute winner in the Women\u2019s Champions League."),
+    ("SPACE", "Voyager 1 one light-day out",
      "NASA probe sets a distance record, 50 years after launch."),
-    ("SCIENCE", "First CME seen on another star",
-     "Stellar storm 10,000 times the Sun's, 133 light-years away."),
 ]
 
-COLS = 3
-ROWS = 10
-GAP = 14
-COLW = (CW - GAP * (COLS - 1)) // COLS
-GX0, GY0 = M, 340
-RH = 53
-for idx, (tag, head, summ) in enumerate(BRIEFS):
-    r, c = divmod(idx, COLS)
-    x = GX0 + c * (COLW + GAP)
-    yy = GY0 + r * RH
-    num = "%02d" % (idx + 2)   # 01 is the lead story
-    d.text((x, yy), num, font=sans_b(12), fill=RED)
-    d.text((x + 24, yy), tag, font=sans_b(10), fill=BLUE)
-    hlines = wrap(head, sans_b(13), COLW)[:2]
-    hy = yy + 15
-    for ln in hlines:
-        d.text((x, hy), ln, font=sans_b(13), fill=INK)
-        hy += 15
-    sline = trunc(summ, sans(11), COLW)
-    d.text((x, hy), sline, font=sans(11), fill=(60, 60, 60))
+for i, (cat, head, summ) in enumerate(BRIEFS):
+    col = i % 2
+    row = i // 2
+    x = M + col * (COLW + 24)
+    y = GRID_Y + row * ROW_H
+    # headline line: red category + bold headline; must fit one line
+    cat_w = d.textlength(cat + "  ", font=sans_b(13))
+    head_w = d.textlength(head, font=serif_b(16))
+    assert cat_w + head_w <= COLW, f"brief {i} headline too long: {cat} {head}"
+    d.text((x, y), cat + "  ", font=sans_b(13), fill=RED)
+    d.text((x + cat_w, y + 1), head, font=serif_b(16), fill=INK)
+    for j, line in enumerate(wrap_max(summ, sans(13), COLW, 2)):
+        d.text((x, y + 20 + j * 15), line, font=sans(13), fill=INK)
 
-rule(878)
+grid_bottom = GRID_Y + 8 * ROW_H
+assert grid_bottom <= 946, f"grid overflows: {grid_bottom}"
 
 # ---------------- markets strip ----------------
-y = 886
-d.text((M, y), "MARKETS", font=sans_b(13), fill=RED)
-mk = [("DOW", "50,198", "-1.11%", RED),
-      ("S&P 500", "7,324", "-0.23%", RED),
-      ("NASDAQ", "24,430", "+0.42%", GREEN),
-      ("OIL", "$82.09", "-4.6%", RED),
-      ("GOLD", "$3,726", "-3.6%", RED),
-      ("BITCOIN", "$63,479", "-2.2%", RED)]
-mw = (CW - 90) // 6
-for i, (name, val, chg, col) in enumerate(mk):
-    x = M + 90 + i * mw
-    d.text((x, y), name, font=sans_b(11), fill=INK)
-    d.text((x, y + 16), val, font=sans_b(13), fill=INK)
-    d.text((x + d.textlength(val, font=sans_b(13)) + 6, y + 17), chg,
-           font=sans_b(11), fill=col)
-rule(930)
+y = 954
+mk = ("DOW 50,198 \u22121.11%  \u2022  S&P 7,324 \u22120.23%  \u2022  NASDAQ 24,430 +0.42%  "
+      "\u2022  OIL $82.09 \u22124.6%  \u2022  GOLD $3,726 \u22123.6%  \u2022  BITCOIN $63,479 \u22122.2%")
+center(y, mk, sans_b(13))
 
 # ---------------- footer ----------------
-center(940, "Thursday, 19 November 2026  \u2022  The Daily Globe", serif_b(14))
-center(962, "Sources: Reuters, Associated Press, BBC News, NDTV, Al Jazeera, "
-             "NOAA, NASA, UKMTO, IAEA, EU Council", sans(11), LIGHT)
-center(980, "Every story verified against live reporting of 19 November 2026  "
-             "\u2022  No invented events, no speculation shown as fact",
-       sans(11), LIGHT)
-center(998, "31 stories: 1 lead + 30 numbered briefs  \u2022  Timeline in UTC",
-       sans(11), LIGHT)
+rule(982)
+center(990, "Thursday, 19 November 2026  \u2022  The Daily Globe", serif_b(15))
+center(1008, "Sources: Reuters, Associated Press, BBC News, NDTV, Al Jazeera, "
+              "IAEA, EU Council", sans(12), LIGHT)
 
-out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "entry.png")
-img.save(out, optimize=True)
-print("saved", out)
+img.save("/home/hatch/workspace/makefun/work-news-image-19-v3/entry.png", optimize=True)
+print("saved")
