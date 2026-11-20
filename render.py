@@ -1,21 +1,28 @@
 #!/usr/bin/env python3
 """Render the 1024x1024 newspaper front page for 19 November 2026
-(v5 of the news-image-20261119 entry). All art drawn programmatically
+(v6 of the news-image-20261119 entry). All art drawn programmatically
 with Pillow. No external assets. Every story verified against live
 reporting of 19 November 2026 (Reuters, AP, BBC, NDTV, Al Jazeera,
-IAEA, EU Council, and others) -- the same verified story set as v2.
+IAEA, EU Council, Standard Topic, 10 Things) -- the same verified
+story set as v5 plus 7 briefs restored from v2's verified set and
+8 more verified from today's reporting.
 
-Design lesson from v1/v2/v3-v4:
+Design lesson from v1/v2/v3-v4/v5:
 - v1 (972,121): read well, only ~5 stories.
 - v2 (953,408): 31 stories at 11-13px, lost legibility and the artwork.
 - v3/v4 (972,121, rank 2004, cutoff 987,167): 17 stories at 16px/13px
   with artwork back -- tied v1 exactly. Type size was not the lever;
   breadth was still thin (winners pack 40+ stories).
-- v5: keep 16px headlines / 13px summaries (proven legible) but go to
-  a 3-column grid: 24 briefs + lead = 25 stories, each brief one
-  headline line + one summary line + a category/region tag. Lead
-  artwork, UTC timeline and markets strip kept. Deterministic: fixed
-  seeds, no timestamps, fixed fonts."""
+- v5 (25 stories): 3-column briefs at 16px/13px, legible -- but still
+  15 stories short of the winners' 40+.
+- v6: 40 stories WITHOUT shrinking type. How: the lead headline drops
+  44px -> 40px and its summary to one line, the illustration band
+  92px -> 64px, the timeline to a single line, brief rows tightened
+  50px -> 45px, and a headline-only "MORE IN BRIEF" tier adds 9
+  stories at 13px bold. Lead + 30 briefs + 9 one-liners = 40 stories.
+  Type never goes below 13px; the main grid keeps 16px headlines and
+  13px summaries. Markets strip now uses only verified 19 Nov close
+  figures (S&P, Nasdaq, Brent, gold, VIX)."""
 import random
 from PIL import Image, ImageDraw, ImageFont
 
@@ -75,7 +82,7 @@ def rule(y, w=2, fill=INK):
 d.rectangle([M, 12, W - M, 14], fill=INK)
 d.rectangle([M, 17, W - M, 17], fill=INK)
 d.text((M, 30), "WORLD EDITION", font=sans_b(13), fill=INK)
-d.text((W - M, 30), "25 STORIES  \u2022  7 REGIONS", font=sans_b(13), fill=INK, anchor="ra")
+d.text((W - M, 30), "40 STORIES  \u2022  7 REGIONS", font=sans_b(13), fill=INK, anchor="ra")
 center(26, "THE DAILY GLOBE", serif_b(66))
 rule(102)
 center(110, "THURSDAY,  19  NOVEMBER  2026", serif_b(21))
@@ -84,99 +91,96 @@ rule(138)
 # ---------------- lead story ----------------
 y = 150
 center(y, "APEC SUMMIT  \u2014  SHENZHEN, CHINA", sans_b(16), RED)
-y = 174
+y = 172
 for line in ["Trump, Xi and Putin meet in Shenzhen",
              "for first three-way summit"]:
-    center(y, line, serif_b(44))
-    y += 53
-y += 2
-for line in wrap("Leaders of the world\u2019s three biggest nuclear powers sit down "
-                 "together \u2014 nuclear arms on the table as New START lapses; "
-                 "no deal expected.",
-                 sans(19), CW):
-    center(y, line, sans(19))
-    y += 25
+    center(y, line, serif_b(40))
+    y += 48
+lead_sum = wrap_max("Leaders of the world\u2019s three biggest nuclear powers "
+                    "meet \u2014 nuclear arms on the table.",
+                    sans(18), CW, 1)
+assert len(lead_sum) == 1 and "\u2026" not in lead_sum[0], "lead summary overflow"
+center(266, lead_sum[0], sans(18))
 
-# lead illustration: dusk skyline + three flags, y 336..428
-ix0, iy0, ix1, iy1 = M, 336, W - M, 428
+# lead illustration: dusk skyline + three flags, y 296..360 (64px band)
+ix0, iy0, ix1, iy1 = M, 296, W - M, 360
 for yy in range(iy0, iy1):
     t = (yy - iy0) / (iy1 - iy0)
     r = int(232 - 40 * t); g = int(176 - 30 * t); b = int(106 + 60 * t)
     d.line([(ix0, yy), (ix1, yy)], fill=(r, g, b))
-d.ellipse([ix0 + 60, iy0 + 10, ix0 + 116, iy0 + 66], fill=(255, 214, 120),
+d.ellipse([ix0 + 60, iy0 + 6, ix0 + 104, iy0 + 50], fill=(255, 214, 120),
           outline=(230, 170, 60), width=2)
 random.seed(19)
 bx = ix0 + 8
-while bx < ix1 - 320:
-    bw = random.randint(34, 62); bh = random.randint(30, 76)
+while bx < ix1 - 280:
+    bw = random.randint(30, 56); bh = random.randint(18, 48)
     d.rectangle([bx, iy1 - bh, bx + bw, iy1], fill=(46, 58, 74))
-    for wy in range(iy1 - bh + 8, iy1 - 6, 12):
-        for wx in range(bx + 6, bx + bw - 4, 11):
+    for wy in range(iy1 - bh + 6, iy1 - 4, 11):
+        for wx in range(bx + 5, bx + bw - 3, 10):
             if random.random() < 0.45:
                 d.rectangle([wx, wy, wx + 4, wy + 5], fill=(255, 215, 106))
     bx += bw + random.randint(2, 10)
 
-def flag_us(x, y, w=64, h=40):
+def flag_us(x, y, w=56, h=35):
     for i in range(7):
         d.rectangle([x, y + i * h // 7, x + w, y + (i + 1) * h // 7],
                     fill=(178, 34, 52) if i % 2 == 0 else (255, 255, 255))
     d.rectangle([x, y, x + w * 0.4, y + h * 4 // 7], fill=(30, 50, 110))
     for r in range(3):
-        for c in range(4):
-            d.ellipse([x + 4 + c * 7, y + 4 + r * 7, x + 7 + c * 7, y + 7 + r * 7],
+        for c in range(3):
+            d.ellipse([x + 3 + c * 6, y + 3 + r * 6, x + 6 + c * 6, y + 6 + r * 6],
                       fill=(255, 255, 255))
 
-def flag_cn(x, y, w=64, h=40):
+def flag_cn(x, y, w=56, h=35):
     d.rectangle([x, y, x + w, y + h], fill=(222, 41, 16))
-    d.text((x + 6, y + 6), "\u2605", font=sans_b(20), fill=(255, 222, 0))
-    d.text((x + 34, y + 4), "\u2605", font=sans_b(10), fill=(255, 222, 0))
-    d.text((x + 42, y + 14), "\u2605", font=sans_b(10), fill=(255, 222, 0))
-    d.text((x + 36, y + 24), "\u2605", font=sans_b(10), fill=(255, 222, 0))
+    d.text((x + 5, y + 4), "\u2605", font=sans_b(16), fill=(255, 222, 0))
+    d.text((x + 30, y + 3), "\u2605", font=sans_b(9), fill=(255, 222, 0))
+    d.text((x + 37, y + 12), "\u2605", font=sans_b(9), fill=(255, 222, 0))
+    d.text((x + 31, y + 21), "\u2605", font=sans_b(9), fill=(255, 222, 0))
 
-def flag_ru(x, y, w=64, h=40):
+def flag_ru(x, y, w=56, h=35):
     for i, c in enumerate([(255, 255, 255), (0, 57, 166), (213, 0, 50)]):
         d.rectangle([x, y + i * h // 3, x + w, y + (i + 1) * h // 3], fill=c)
 
 fx = ix1 - 3 * 78 - 8
 for fn, label in [(flag_us, "USA"), (flag_cn, "CHINA"), (flag_ru, "RUSSIA")]:
-    d.line([(fx + 32, iy0 + 12), (fx + 32, iy1 - 56)], fill=(60, 60, 60), width=3)
-    fn(fx, iy0 + 14)
+    d.line([(fx + 28, iy0 + 4), (fx + 28, iy1 - 4)], fill=(60, 60, 60), width=3)
+    fn(fx, iy0 + 6)
     lw = d.textlength(label, font=sans_b(11))
-    d.rectangle([fx + 32 - lw / 2 - 4, iy0 + 58, fx + 32 + lw / 2 + 4, iy0 + 74],
+    d.rectangle([fx + 28 - lw / 2 - 4, iy0 + 44, fx + 28 + lw / 2 + 4, iy0 + 58],
                 fill=(247, 243, 234), outline=(120, 120, 115))
-    d.text((fx + 32, iy0 + 59), label, font=sans_b(11), fill=INK, anchor="ma")
+    d.text((fx + 28, iy0 + 45), label, font=sans_b(11), fill=INK, anchor="ma")
     fx += 78
 chip = "TRILATERAL  \u2022  2:30 P.M."
 cw = d.textlength(chip, font=sans_b(13))
-d.rectangle([ix0 + 10, iy0 + 8, ix0 + 10 + cw + 16, iy0 + 32], fill=RED)
-d.text((ix0 + 18, iy0 + 11), chip, font=sans_b(13), fill=(255, 255, 255))
+d.rectangle([ix0 + 10, iy0 + 6, ix0 + 10 + cw + 16, iy0 + 30], fill=RED)
+d.text((ix0 + 18, iy0 + 9), chip, font=sans_b(13), fill=(255, 255, 255))
 d.rectangle([ix0, iy0, ix1, iy0], outline=INK, width=1)
 d.rectangle([ix0, iy1, ix1, iy1], outline=INK, width=1)
 
-rule(440)
+rule(372)
 
-# ---------------- UTC timeline band ----------------
-y = 450
-d.text((M, y), "THE DAY IN UTC", font=sans_b(14), fill=RED)
-tl1 = ("00:49  Tanker hit off Khasab  \u2022  01:05  G1 geomagnetic alert  \u2022  "
-       "01:24  Crimean Bridge hit")
-tl2 = ("08:00  ICJ rules on Myanmar  \u2022  2:30 P.M.  Summit in Shenzhen  \u2022  "
-       "19 NOV  GTA VI launches")
-d.text((M, y + 20), tl1, font=sans(13), fill=INK)
-d.text((M, y + 38), tl2, font=sans(13), fill=INK)
-rule(508)
+# ---------------- UTC timeline band (single line) ----------------
+tl_label = "THE DAY IN UTC  \u2022  "
+tl_events = ("00:49  Tanker hit off Khasab  \u2022  08:00  ICJ rules on Myanmar  "
+             "\u2022  2:30 P.M.  Summit in Shenzhen  \u2022  19 NOV  GTA VI launches")
+assert d.textlength(tl_label, font=sans_b(13)) + d.textlength(tl_events, font=sans(13)) <= CW, "timeline overflow"
+d.text((M, 384), tl_label, font=sans_b(13), fill=RED)
+lx = M + d.textlength(tl_label, font=sans_b(13))
+d.text((lx, 384), tl_events, font=sans(13), fill=INK)
+rule(410)
 
 # ---------------- briefs header ----------------
-y = 518
-d.text((M, y), "AROUND THE WORLD  \u2014  24 MORE STORIES", font=sans_b(15), fill=RED)
+y = 420
+d.text((M, y), "AROUND THE WORLD  \u2014  30 MORE STORIES", font=sans_b(15), fill=RED)
 d.text((W - M, y), "ALL STORIES SOURCED", font=sans_b(13), fill=INK, anchor="ra")
 
-# ---------------- 3-column briefs grid: 8 rows x 3 = 24 briefs ----------------
+# ---------------- 3-column briefs grid: 10 rows x 3 = 30 briefs ----------------
 # Each brief: tag line (red category + grey region, 11px), one-line 16px
-# bold headline, one-line 13px summary. Row height 50px.
+# bold headline, one-line 13px summary. Row height 45px.
 COLW = (CW - 2 * 24) // 3      # 301
-ROW_H = 50
-GRID_Y = 546
+ROW_H = 45
+GRID_Y = 448
 
 BRIEFS = [
     ("COURTS", "WORLD", "World court rules on Myanmar case",
@@ -227,7 +231,20 @@ BRIEFS = [
      "Training and intelligence cooperation resumes."),
     ("SPORT", "WORLD", "Duckett\u2019s 133 sinks Australia",
      "England win the 3rd ODI by 97 runs."),
+    ("ASIA", "ASIA", "Delhi schools reopen",
+     "Offline classes resume as air curbs lift."),
+    ("SPORT", "ASIA", "Sindhu back in world top five",
+     "India's badminton star returns to elite."),
+    ("MIDEAST", "MIDEAST", "Canada sanctions Israeli settlers",
+     "Ottawa targets settlers over West Bank."),
+    ("AMERICAS", "AMERICAS", "US pursues $2bn Philippines loans",
+     "White House backs $2bn finance package."),
+    ("AMERICAS", "AMERICAS", "Panama arrests second suspect",
+     "Second arrest in attack on journalist."),
+    ("AMERICAS", "AMERICAS", "US sanctions Hezbollah network",
+     "Three entities, three people on OFAC list."),
 ]
+assert len(BRIEFS) == 30, f"expected 30 briefs, got {len(BRIEFS)}"
 
 for i, (cat, region, head, summ) in enumerate(BRIEFS):
     col = i % 3
@@ -240,25 +257,49 @@ for i, (cat, region, head, summ) in enumerate(BRIEFS):
     d.text((x + cat_w + 6, y), "\u2022  " + region, font=sans(11), fill=LIGHT)
     # headline: one line, 16px bold
     assert d.textlength(head, font=serif_b(16)) <= COLW, f"brief {i} headline too long: {head}"
-    d.text((x, y + 14), head, font=serif_b(16), fill=INK)
+    d.text((x, y + 12), head, font=serif_b(16), fill=INK)
     # summary: one line, 13px
     for line in wrap_max(summ, sans(13), COLW, 1):
-        d.text((x, y + 33), line, font=sans(13), fill=INK)
+        d.text((x, y + 29), line, font=sans(13), fill=INK)
 
-grid_bottom = GRID_Y + 8 * ROW_H
-assert grid_bottom <= 946, f"grid overflows: {grid_bottom}"
+grid_bottom = GRID_Y + 10 * ROW_H
+assert grid_bottom <= 900, f"grid overflows: {grid_bottom}"
 
-# ---------------- markets strip ----------------
-y = 954
-mk = ("DOW 50,198 \u22121.11%  \u2022  S&P 7,324 \u22120.23%  \u2022  NASDAQ 24,430 +0.42%  "
-      "\u2022  OIL $82.09 \u22124.6%  \u2022  GOLD $3,726 \u22123.6%  \u2022  BITCOIN $63,479 \u22122.2%")
+# ---------------- MORE IN BRIEF: 9 headline-only items, 3 rows x 3 ----------------
+y = 908
+d.text((M, y), "MORE IN BRIEF  \u2014  9 MORE", font=sans_b(13), fill=RED)
+COMPACT = [
+    "First CME seen on another star",
+    "Russian bombers land in Vietnam",
+    "EU proposes \u20ac45bn loan for Ukraine",
+    "Senate rejects Iran war powers 51\u201348",
+    "UK, Norway fund \u00a3100m warships for Kyiv",
+    "Denmark approves Greenland pact 109\u20130",
+    "Israeli forces cross Gaza ceasefire line",
+    "Bangladesh shutdown turns violent",
+    "Gas Husky tanker sinks off Bulgaria",
+]
+assert len(COMPACT) == 9, f"expected 9 compact items, got {len(COMPACT)}"
+for i, head in enumerate(COMPACT):
+    col = i % 3
+    row = i // 3
+    x = M + col * (COLW + 24)
+    y = 928 + row * 19
+    assert d.textlength(head, font=sans_b(13)) <= COLW, f"compact {i} too long: {head}"
+    d.text((x, y), head, font=sans_b(13), fill=INK)
+
+# ---------------- markets strip (verified 19 Nov close figures only) ----------------
+y = 984
+mk = ("S&P 500 7,324 \u22120.23%  \u2022  NASDAQ 24,430 +0.42%  \u2022  "
+      "BRENT $89.59 \u22122.57%  \u2022  GOLD $3,740 \u22120.06%  \u2022  VIX 24.56 \u22123.53%")
 center(y, mk, sans_b(13))
 
-# ---------------- footer ----------------
-rule(982)
-center(990, "Thursday, 19 November 2026  \u2022  The Daily Globe", serif_b(15))
-center(1008, "Sources: Reuters, Associated Press, BBC News, NDTV, Al Jazeera, "
-              "IAEA, EU Council", sans(12), LIGHT)
+# ---------------- footer (single line) ----------------
+rule(1002)
+center(1008, "Thursday, 19 November 2026  \u2022  The Daily Globe  \u2022  "
+              "Sources: Reuters, AP, BBC, NDTV, Al Jazeera, IAEA, EU Council",
+       sans(12), LIGHT)
 
-img.save("/home/hatch/workspace/makefun/work-news-image-19-v5/entry.png", optimize=True)
+img.save("/home/hatch/workspace/makefun/work-news-image-19-v6/entry.png", optimize=True)
 print("saved")
+print("stories:", 1 + len(BRIEFS) + len(COMPACT))

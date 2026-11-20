@@ -7,10 +7,11 @@
 One image that sums up the world's news on Thursday, 19 November 2026, as a
 newspaper front page: the first-ever Trump–Xi–Putin trilateral summit in
 Shenzhen leads, with the ICJ's Rohingya genocide judgment, the GTA VI launch,
-Anthropic's record IPO debut, and the Crimean Bridge strike below it, plus an
-in-brief ticker. Every headline traces to real reporting from that day
-(Reuters, AP, BBC News, Human Rights Watch, The Guardian). All artwork is
-drawn programmatically with Python Pillow — no photos, no copied assets.
+Anthropic's record IPO debut, and the Crimean Bridge strike below it — plus
+30 briefs and 9 more one-line stories, 40 stories in all. Every headline
+traces to real reporting from that day (Reuters, AP, BBC News, Human Rights
+Watch, The Guardian). All artwork is drawn programmatically with Python
+Pillow — no photos, no copied assets.
 
 ## What it is
 
