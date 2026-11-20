@@ -4,23 +4,21 @@
 [![rank](https://make.fun/badge/news-image-20261119/DanuMahiru/news-image-20261119/rank.svg)](https://make.fun/bounty/news-image-20261119/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261119)
 [![reward](https://make.fun/badge/news-image-20261119/DanuMahiru/news-image-20261119/reward.svg)](https://make.fun/bounty/news-image-20261119?utm_source=github&utm_medium=readme&utm_campaign=news-image-20261119)
 
-One image that sums up the world's news on Thursday, 19 November 2026, as a
-newspaper front page: the first-ever Trump–Xi–Putin trilateral summit in
-Shenzhen leads, with the ICJ's Rohingya genocide judgment, the GTA VI launch,
-Anthropic's record IPO debut, and the Crimean Bridge strike below it — plus
-30 briefs and 9 more one-line stories, 40 stories in all. Every headline
-traces to real reporting from that day (Reuters, AP, BBC News, Human Rights
-Watch, The Guardian). All artwork is drawn programmatically with Python
-Pillow — no photos, no copied assets.
+Thursday 19 November 2026, as a newspaper front page: the first Trump–Xi–Putin
+trilateral summit in Shenzhen leads the page, with the ICJ's Rohingya judgment,
+the GTA VI launch, Anthropic's record IPO debut and the Crimean Bridge strike
+under it — then 30 briefs and 9 more one-line stories, 40 stories in total.
+Every headline goes back to real reporting from that day (Reuters, AP, BBC
+News, Human Rights Watch, The Guardian). The artwork is all drawn in code
+with Python Pillow — no photos, no borrowed assets.
 
-## What it is
+## What is in here
 
-`entry.png` (1024 × 1024) is the whole entry. `main.ts` (Node 22, stdlib
-only) copies it to the output directory, byte for byte, so both grader runs
-produce identical output. `render.py` is the drawing script that produced
-the image.
+`entry.png` (1024 × 1024) is the entire entry. `main.ts` (Node 22, stdlib
+only) moves it into the output directory unchanged, so repeated grader runs
+give byte-identical output. `render.py` is the script that draws the image.
 
-## Run it
+## Try it
 
 ```sh
 MAKEFUN_OUTPUT_DIR=out node main.ts

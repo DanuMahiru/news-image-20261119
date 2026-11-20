@@ -1,181 +1,196 @@
 #!/usr/bin/env python3
-"""Draw the 1024x1024 newspaper front page for Thursday 19 November 2026.
+"""Front-page generator: one 1024x1024 newspaper image for 19 November 2026.
 
-This is the v6 generator for the news-image-20261119 entry. Every piece of
-art is drawn in code with Pillow -- no photos, no downloaded assets, no
-copied material. All 40 stories are verified against real reporting from
-19 November 2026 (Reuters, AP, BBC, NDTV, Al Jazeera, IAEA, EU Council
-and others): the 25-story v5 set plus briefs restored from the verified
-v2 set and further stories verified from the day's reporting.
+This script paints the whole page with Pillow and nothing else — every
+skyline, flag, rule and headline is drawn by code, so the output is fully
+reproducible. The edition carries forty stories: a trilateral-summit lead,
+a three-column briefs grid, and a headline-only "more in brief" tier.
 
-Layout idea (v6): reach the winners' breadth of 40 stories without ever
-shrinking the type. The lead headline goes 44px -> 40px with a one-line
-summary, the picture band 92px -> 64px, the timeline becomes one line,
-brief rows tighten 50px -> 45px, and a headline-only "MORE IN BRIEF"
-tier adds 9 stories at 13px bold. Lead + 30 briefs + 9 one-liners = 40.
-Type never drops below 13px; the main grid keeps 16px bold headlines
-with 13px summaries. The markets strip uses only verified 19 Nov close
-figures (S&P 500, Nasdaq, Brent, gold, VIX)."""
+The layout squeezes breadth out of the chrome rather than the type:
+a shorter lead, a slimmer picture band, a one-line timeline and tighter
+brief rows leave room for the extra stories while the smallest type
+stays at thirteen pixels. Market figures are the verified 19 November
+closes. All story wording comes from real reporting of the day
+(Reuters, AP, BBC, NDTV, Al Jazeera, IAEA, EU Council and others)."""
 import random
 from PIL import Image, ImageDraw, ImageFont
 
-W, H = 1024, 1024
-M = 36                      # side margin
-CW = W - 2 * M              # content width = 952
+PAGE_W, PAGE_H = 1024, 1024
+MARGIN = 36                       # space at each side
+CONTENT_W = PAGE_W - 2 * MARGIN   # 952 usable pixels across
 
-PAPER = (247, 243, 234)
-INK = (17, 17, 17)
-RED = (164, 30, 34)
-BLUE = (31, 78, 121)
-MIDBLUE = (58, 110, 165)
-LIGHT = (120, 120, 115)
+BG = (247, 243, 234)
+FG = (17, 17, 17)
+ACCENT = (164, 30, 34)
+NAVY = (31, 78, 121)
+SKY = (58, 110, 165)
+GREY = (120, 120, 115)
 
-FL = "/usr/share/fonts/truetype/liberation/"
+FONT_DIR = "/usr/share/fonts/truetype/liberation/"
+_FONT_FILES = {
+    "serif-bold": "LiberationSerif-Bold.ttf",
+    "serif": "LiberationSerif-Regular.ttf",
+    "sans-bold": "LiberationSans-Bold.ttf",
+    "sans": "LiberationSans-Regular.ttf",
+}
 
-def serif_b(sz): return ImageFont.truetype(FL + "LiberationSerif-Bold.ttf", sz)
-def serif(sz):   return ImageFont.truetype(FL + "LiberationSerif-Regular.ttf", sz)
-def sans_b(sz):  return ImageFont.truetype(FL + "LiberationSans-Bold.ttf", sz)
-def sans(sz):    return ImageFont.truetype(FL + "LiberationSans-Regular.ttf", sz)
 
-img = Image.new("RGB", (W, H), PAPER)
-d = ImageDraw.Draw(img)
+def typeface(kind, size):
+    return ImageFont.truetype(FONT_DIR + _FONT_FILES[kind], size)
 
-def wrap(text, font, max_w):
-    words, lines, cur = text.split(), [], ""
-    for w in words:
-        t = (cur + " " + w).strip()
-        if d.textlength(t, font=font) <= max_w:
-            cur = t
+
+page = Image.new("RGB", (PAGE_W, PAGE_H), BG)
+pen = ImageDraw.Draw(page)
+
+
+def fold_text(text, font, max_w):
+    """Greedy word wrap: pack words onto lines no wider than max_w."""
+    words = text.split()
+    lines = []
+    current = ""
+    for word in words:
+        candidate = (current + " " + word).strip()
+        if pen.textlength(candidate, font=font) <= max_w:
+            current = candidate
         else:
-            if cur:
-                lines.append(cur)
-            cur = w
-    if cur:
-        lines.append(cur)
+            if current:
+                lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
     return lines
 
-def wrap_max(text, font, max_w, max_lines):
-    """Wrap to at most max_lines lines; trim the last with an ellipsis."""
-    lines = wrap(text, font, max_w)
+
+def fold_limited(text, font, max_w, max_lines):
+    """Wrap, then cut to max_lines lines with an ellipsis on the last."""
+    lines = fold_text(text, font, max_w)
     if len(lines) <= max_lines:
         return lines
-    out = lines[:max_lines]
-    while out and d.textlength(out[-1] + " \u2026", font=font) > max_w:
-        out[-1] = out[-1].rsplit(" ", 1)[0] if " " in out[-1] else ""
-    out[-1] = (out[-1] + " \u2026").strip()
-    return out
+    trimmed = lines[:max_lines]
+    while trimmed and pen.textlength(trimmed[-1] + " \u2026", font=font) > max_w:
+        trimmed[-1] = trimmed[-1].rsplit(" ", 1)[0] if " " in trimmed[-1] else ""
+    trimmed[-1] = (trimmed[-1] + " \u2026").strip()
+    return trimmed
 
-def center(y, text, font, fill=INK):
-    d.text((W / 2, y), text, font=font, fill=fill, anchor="ma")
 
-def rule(y, w=2, fill=INK):
-    d.rectangle([M, y, W - M, y + w - 1], fill=fill)
+def centred(y, text, font, colour=FG):
+    pen.text((PAGE_W / 2, y), text, font=font, fill=colour, anchor="ma")
 
-# ---------------- masthead ----------------
-d.rectangle([M, 12, W - M, 14], fill=INK)
-d.rectangle([M, 17, W - M, 17], fill=INK)
-d.text((M, 30), "WORLD EDITION", font=sans_b(13), fill=INK)
-d.text((W - M, 30), "40 STORIES  \u2022  7 REGIONS", font=sans_b(13), fill=INK, anchor="ra")
-center(26, "THE DAILY GLOBE", serif_b(66))
-rule(102)
-center(110, "THURSDAY,  19  NOVEMBER  2026", serif_b(21))
-rule(138)
 
-# ---------------- lead story ----------------
-y = 150
-center(y, "APEC SUMMIT  \u2014  SHENZHEN, CHINA", sans_b(16), RED)
-y = 172
-for line in ["Trump, Xi and Putin meet in Shenzhen",
-             "for first three-way summit"]:
-    center(y, line, serif_b(40))
-    y += 48
-lead_sum = wrap_max("Leaders of the world\u2019s three biggest nuclear powers "
-                    "meet \u2014 nuclear arms on the table.",
-                    sans(18), CW, 1)
-assert len(lead_sum) == 1 and "\u2026" not in lead_sum[0], "lead summary overflow"
-center(266, lead_sum[0], sans(18))
+def hline(y, thick=2, colour=FG):
+    pen.rectangle([MARGIN, y, PAGE_W - MARGIN, y + thick - 1], fill=colour)
 
-# lead illustration: dusk skyline + three flags, y 296..360 (64px band)
-ix0, iy0, ix1, iy1 = M, 296, W - M, 360
-for yy in range(iy0, iy1):
-    t = (yy - iy0) / (iy1 - iy0)
-    r = int(232 - 40 * t); g = int(176 - 30 * t); b = int(106 + 60 * t)
-    d.line([(ix0, yy), (ix1, yy)], fill=(r, g, b))
-d.ellipse([ix0 + 60, iy0 + 6, ix0 + 104, iy0 + 50], fill=(255, 214, 120),
-          outline=(230, 170, 60), width=2)
-random.seed(19)
-bx = ix0 + 8
-while bx < ix1 - 280:
-    bw = random.randint(30, 56); bh = random.randint(18, 48)
-    d.rectangle([bx, iy1 - bh, bx + bw, iy1], fill=(46, 58, 74))
-    for wy in range(iy1 - bh + 6, iy1 - 4, 11):
-        for wx in range(bx + 5, bx + bw - 3, 10):
-            if random.random() < 0.45:
-                d.rectangle([wx, wy, wx + 4, wy + 5], fill=(255, 215, 106))
-    bx += bw + random.randint(2, 10)
 
-def flag_us(x, y, w=56, h=35):
-    for i in range(7):
-        d.rectangle([x, y + i * h // 7, x + w, y + (i + 1) * h // 7],
-                    fill=(178, 34, 52) if i % 2 == 0 else (255, 255, 255))
-    d.rectangle([x, y, x + w * 0.4, y + h * 4 // 7], fill=(30, 50, 110))
+def draw_masthead():
+    """Top banner: thin rules, edition line, title, dateline."""
+    pen.rectangle([MARGIN, 12, PAGE_W - MARGIN, 14], fill=FG)
+    pen.rectangle([MARGIN, 17, PAGE_W - MARGIN, 17], fill=FG)
+    pen.text((MARGIN, 30), "WORLD EDITION", font=typeface("sans-bold", 13), fill=FG)
+    pen.text((PAGE_W - MARGIN, 30), "40 STORIES  \u2022  7 REGIONS", font=typeface("sans-bold", 13), fill=FG, anchor="ra")
+    centred(26, "THE DAILY GLOBE", typeface("serif-bold", 66))
+    hline(102)
+    centred(110, "THURSDAY,  19  NOVEMBER  2026", typeface("serif-bold", 21))
+    hline(138)
+
+
+def draw_lead():
+    """Lead story: kicker, two-line headline, one-line summary."""
+    top = 150
+    centred(top, "APEC SUMMIT  \u2014  SHENZHEN, CHINA", typeface("sans-bold", 16), ACCENT)
+    cursor = 172
+    for line in ["Trump, Xi and Putin meet in Shenzhen",
+                 "for first three-way summit"]:
+        centred(cursor, line, typeface("serif-bold", 40))
+        cursor += 48
+    summary = fold_limited("Leaders of the world\u2019s three biggest nuclear powers "
+                           "meet \u2014 nuclear arms on the table.",
+                           typeface("sans", 18), CONTENT_W, 1)
+    assert len(summary) == 1 and "\u2026" not in summary[0], "lead summary overflow"
+    centred(266, summary[0], typeface("sans", 18))
+
+
+def draw_us_flag(x, y, w=56, h=35):
+    for stripe in range(7):
+        pen.rectangle([x, y + stripe * h // 7, x + w, y + (stripe + 1) * h // 7],
+                      fill=(178, 34, 52) if stripe % 2 == 0 else (255, 255, 255))
+    pen.rectangle([x, y, x + w * 0.4, y + h * 4 // 7], fill=(30, 50, 110))
     for r in range(3):
         for c in range(3):
-            d.ellipse([x + 3 + c * 6, y + 3 + r * 6, x + 6 + c * 6, y + 6 + r * 6],
-                      fill=(255, 255, 255))
+            pen.ellipse([x + 3 + c * 6, y + 3 + r * 6, x + 6 + c * 6, y + 6 + r * 6],
+                        fill=(255, 255, 255))
 
-def flag_cn(x, y, w=56, h=35):
-    d.rectangle([x, y, x + w, y + h], fill=(222, 41, 16))
-    d.text((x + 5, y + 4), "\u2605", font=sans_b(16), fill=(255, 222, 0))
-    d.text((x + 30, y + 3), "\u2605", font=sans_b(9), fill=(255, 222, 0))
-    d.text((x + 37, y + 12), "\u2605", font=sans_b(9), fill=(255, 222, 0))
-    d.text((x + 31, y + 21), "\u2605", font=sans_b(9), fill=(255, 222, 0))
 
-def flag_ru(x, y, w=56, h=35):
+def draw_cn_flag(x, y, w=56, h=35):
+    pen.rectangle([x, y, x + w, y + h], fill=(222, 41, 16))
+    pen.text((x + 5, y + 4), "\u2605", font=typeface("sans-bold", 16), fill=(255, 222, 0))
+    pen.text((x + 30, y + 3), "\u2605", font=typeface("sans-bold", 9), fill=(255, 222, 0))
+    pen.text((x + 37, y + 12), "\u2605", font=typeface("sans-bold", 9), fill=(255, 222, 0))
+    pen.text((x + 31, y + 21), "\u2605", font=typeface("sans-bold", 9), fill=(255, 222, 0))
+
+
+def draw_ru_flag(x, y, w=56, h=35):
     for i, c in enumerate([(255, 255, 255), (0, 57, 166), (213, 0, 50)]):
-        d.rectangle([x, y + i * h // 3, x + w, y + (i + 1) * h // 3], fill=c)
+        pen.rectangle([x, y + i * h // 3, x + w, y + (i + 1) * h // 3], fill=c)
 
-fx = ix1 - 3 * 78 - 8
-for fn, label in [(flag_us, "USA"), (flag_cn, "CHINA"), (flag_ru, "RUSSIA")]:
-    d.line([(fx + 28, iy0 + 4), (fx + 28, iy1 - 4)], fill=(60, 60, 60), width=3)
-    fn(fx, iy0 + 6)
-    lw = d.textlength(label, font=sans_b(11))
-    d.rectangle([fx + 28 - lw / 2 - 4, iy0 + 44, fx + 28 + lw / 2 + 4, iy0 + 58],
-                fill=(247, 243, 234), outline=(120, 120, 115))
-    d.text((fx + 28, iy0 + 45), label, font=sans_b(11), fill=INK, anchor="ma")
-    fx += 78
-chip = "TRILATERAL  \u2022  2:30 P.M."
-cw = d.textlength(chip, font=sans_b(13))
-d.rectangle([ix0 + 10, iy0 + 6, ix0 + 10 + cw + 16, iy0 + 30], fill=RED)
-d.text((ix0 + 18, iy0 + 9), chip, font=sans_b(13), fill=(255, 255, 255))
-d.rectangle([ix0, iy0, ix1, iy0], outline=INK, width=1)
-d.rectangle([ix0, iy1, ix1, iy1], outline=INK, width=1)
 
-rule(372)
+def draw_art_band():
+    """Picture band, y 296..360: dusk sky, sun, lit skyline, three flags."""
+    bx0, by0, bx1, by1 = MARGIN, 296, PAGE_W - MARGIN, 360
+    for scan_y in range(by0, by1):
+        frac = (scan_y - by0) / (by1 - by0)
+        cr = int(232 - 40 * frac); cg = int(176 - 30 * frac); cb = int(106 + 60 * frac)
+        pen.line([(bx0, scan_y), (bx1, scan_y)], fill=(cr, cg, cb))
+    pen.ellipse([bx0 + 60, by0 + 6, bx0 + 104, by0 + 50], fill=(255, 214, 120),
+                outline=(230, 170, 60), width=2)
+    random.seed(19)
+    cursor_x = bx0 + 8
+    while cursor_x < bx1 - 280:
+        w_px = random.randint(30, 56); h_px = random.randint(18, 48)
+        pen.rectangle([cursor_x, by1 - h_px, cursor_x + w_px, by1], fill=(46, 58, 74))
+        for win_y in range(by1 - h_px + 6, by1 - 4, 11):
+            for win_x in range(cursor_x + 5, cursor_x + w_px - 3, 10):
+                if random.random() < 0.45:
+                    pen.rectangle([win_x, win_y, win_x + 4, win_y + 5], fill=(255, 215, 106))
+        cursor_x += w_px + random.randint(2, 10)
 
-# ---------------- UTC timeline band (single line) ----------------
-tl_label = "THE DAY IN UTC  \u2022  "
-tl_events = ("00:49  Tanker hit off Khasab  \u2022  08:00  ICJ rules on Myanmar  "
+    fx = bx1 - 3 * 78 - 8
+    for draw_flag, label in [(draw_us_flag, "USA"), (draw_cn_flag, "CHINA"), (draw_ru_flag, "RUSSIA")]:
+        pen.line([(fx + 28, by0 + 4), (fx + 28, by1 - 4)], fill=(60, 60, 60), width=3)
+        draw_flag(fx, by0 + 6)
+        label_w = pen.textlength(label, font=typeface("sans-bold", 11))
+        pen.rectangle([fx + 28 - label_w / 2 - 4, by0 + 44, fx + 28 + label_w / 2 + 4, by0 + 58],
+                      fill=(247, 243, 234), outline=(120, 120, 115))
+        pen.text((fx + 28, by0 + 45), label, font=typeface("sans-bold", 11), fill=FG, anchor="ma")
+        fx += 78
+    badge = "TRILATERAL  \u2022  2:30 P.M."
+    badge_w = pen.textlength(badge, font=typeface("sans-bold", 13))
+    pen.rectangle([bx0 + 10, by0 + 6, bx0 + 10 + badge_w + 16, by0 + 30], fill=ACCENT)
+    pen.text((bx0 + 18, by0 + 9), badge, font=typeface("sans-bold", 13), fill=(255, 255, 255))
+    pen.rectangle([bx0, by0, bx1, by0], outline=FG, width=1)
+    pen.rectangle([bx0, by1, bx1, by1], outline=FG, width=1)
+    hline(372)
+
+
+def draw_timeline():
+    """One-line UTC timeline of the day's key moments."""
+    head = "THE DAY IN UTC  \u2022  "
+    items = ("00:49  Tanker hit off Khasab  \u2022  08:00  ICJ rules on Myanmar  "
              "\u2022  2:30 P.M.  Summit in Shenzhen  \u2022  19 NOV  GTA VI launches")
-assert d.textlength(tl_label, font=sans_b(13)) + d.textlength(tl_events, font=sans(13)) <= CW, "timeline overflow"
-d.text((M, 384), tl_label, font=sans_b(13), fill=RED)
-lx = M + d.textlength(tl_label, font=sans_b(13))
-d.text((lx, 384), tl_events, font=sans(13), fill=INK)
-rule(410)
+    assert pen.textlength(head, font=typeface("sans-bold", 13)) + pen.textlength(items, font=typeface("sans", 13)) <= CONTENT_W, "timeline overflow"
+    pen.text((MARGIN, 384), head, font=typeface("sans-bold", 13), fill=ACCENT)
+    text_x = MARGIN + pen.textlength(head, font=typeface("sans-bold", 13))
+    pen.text((text_x, 384), items, font=typeface("sans", 13), fill=FG)
+    hline(410)
 
-# ---------------- briefs header ----------------
-y = 420
-d.text((M, y), "AROUND THE WORLD  \u2014  30 MORE STORIES", font=sans_b(15), fill=RED)
-d.text((W - M, y), "ALL STORIES SOURCED", font=sans_b(13), fill=INK, anchor="ra")
 
-# ---------------- 3-column briefs grid: 10 rows x 3 = 30 briefs ----------------
-# Each brief: tag line (red category + grey region, 11px), one-line 16px
-# bold headline, one-line 13px summary. Row height 45px.
-COLW = (CW - 2 * 24) // 3      # 301
-ROW_H = 45
-GRID_Y = 448
+# Three-column briefs grid: 10 rows x 3 columns = 30 briefs.
+# Each brief: red tag + grey region (11px), one-line 16px bold headline,
+# one-line 13px summary. Row height 45px.
+COL_W = (CONTENT_W - 2 * 24) // 3   # 301
+ROW_PX = 45
+GRID_TOP = 448
 
-BRIEFS = [
+STORIES = [
     ("COURTS", "WORLD", "World court rules on Myanmar case",
      "ICJ delivers its verdict on the Rohingya case."),
     ("GAMES", "WORLD", "GTA VI is out \u2014 back to Vice City",
@@ -237,31 +252,30 @@ BRIEFS = [
     ("AMERICAS", "AMERICAS", "US sanctions Hezbollah network",
      "Three entities, three people on OFAC list."),
 ]
-assert len(BRIEFS) == 30, f"expected 30 briefs, got {len(BRIEFS)}"
+assert len(STORIES) == 30, f"expected 30 briefs, got {len(STORIES)}"
 
-for i, (cat, region, head, summ) in enumerate(BRIEFS):
-    col = i % 3
-    row = i // 3
-    x = M + col * (COLW + 24)
-    y = GRID_Y + row * ROW_H
-    # tag line: red category + grey region
-    d.text((x, y), cat, font=sans_b(11), fill=RED)
-    cat_w = d.textlength(cat, font=sans_b(11))
-    d.text((x + cat_w + 6, y), "\u2022  " + region, font=sans(11), fill=LIGHT)
-    # headline: one line, 16px bold
-    assert d.textlength(head, font=serif_b(16)) <= COLW, f"brief {i} headline too long: {head}"
-    d.text((x, y + 12), head, font=serif_b(16), fill=INK)
-    # summary: one line, 13px
-    for line in wrap_max(summ, sans(13), COLW, 1):
-        d.text((x, y + 29), line, font=sans(13), fill=INK)
 
-grid_bottom = GRID_Y + 10 * ROW_H
-assert grid_bottom <= 900, f"grid overflows: {grid_bottom}"
+def draw_briefs():
+    """Briefs header plus the 30-brief grid."""
+    pen.text((MARGIN, 420), "AROUND THE WORLD  \u2014  30 MORE STORIES", font=typeface("sans-bold", 15), fill=ACCENT)
+    pen.text((PAGE_W - MARGIN, 420), "ALL STORIES SOURCED", font=typeface("sans-bold", 13), fill=FG, anchor="ra")
+    for idx, (tag, zone, title, blurb) in enumerate(STORIES):
+        col = idx % 3
+        row = idx // 3
+        x = MARGIN + col * (COL_W + 24)
+        y = GRID_TOP + row * ROW_PX
+        pen.text((x, y), tag, font=typeface("sans-bold", 11), fill=ACCENT)
+        tag_w = pen.textlength(tag, font=typeface("sans-bold", 11))
+        pen.text((x + tag_w + 6, y), "\u2022  " + zone, font=typeface("sans", 11), fill=GREY)
+        assert pen.textlength(title, font=typeface("serif-bold", 16)) <= COL_W, f"brief {idx} headline too long: {title}"
+        pen.text((x, y + 12), title, font=typeface("serif-bold", 16), fill=FG)
+        for line in fold_limited(blurb, typeface("sans", 13), COL_W, 1):
+            pen.text((x, y + 29), line, font=typeface("sans", 13), fill=FG)
+    bottom = GRID_TOP + 10 * ROW_PX
+    assert bottom <= 900, f"grid overflows: {bottom}"
 
-# ---------------- MORE IN BRIEF: 9 headline-only items, 3 rows x 3 ----------------
-y = 908
-d.text((M, y), "MORE IN BRIEF  \u2014  9 MORE", font=sans_b(13), fill=RED)
-COMPACT = [
+
+HEADLINES_ONLY = [
     "First CME seen on another star",
     "Russian bombers land in Vietnam",
     "EU proposes \u20ac45bn loan for Ukraine",
@@ -272,27 +286,45 @@ COMPACT = [
     "Bangladesh shutdown turns violent",
     "Gas Husky tanker sinks off Bulgaria",
 ]
-assert len(COMPACT) == 9, f"expected 9 compact items, got {len(COMPACT)}"
-for i, head in enumerate(COMPACT):
-    col = i % 3
-    row = i // 3
-    x = M + col * (COLW + 24)
-    y = 928 + row * 19
-    assert d.textlength(head, font=sans_b(13)) <= COLW, f"compact {i} too long: {head}"
-    d.text((x, y), head, font=sans_b(13), fill=INK)
+assert len(HEADLINES_ONLY) == 9, f"expected 9 compact items, got {len(HEADLINES_ONLY)}"
 
-# ---------------- markets strip (verified 19 Nov close figures only) ----------------
-y = 984
-mk = ("S&P 500 7,324 \u22120.23%  \u2022  NASDAQ 24,430 +0.42%  \u2022  "
-      "BRENT $89.59 \u22122.57%  \u2022  GOLD $3,740 \u22120.06%  \u2022  VIX 24.56 \u22123.53%")
-center(y, mk, sans_b(13))
 
-# ---------------- footer (single line) ----------------
-rule(1002)
-center(1008, "Thursday, 19 November 2026  \u2022  The Daily Globe  \u2022  "
-              "Sources: Reuters, AP, BBC, NDTV, Al Jazeera, IAEA, EU Council",
-       sans(12), LIGHT)
+def draw_compact():
+    """MORE IN BRIEF: 9 headline-only items, 3 rows x 3."""
+    pen.text((MARGIN, 908), "MORE IN BRIEF  \u2014  9 MORE", font=typeface("sans-bold", 13), fill=ACCENT)
+    for idx, title in enumerate(HEADLINES_ONLY):
+        col = idx % 3
+        row = idx // 3
+        x = MARGIN + col * (COL_W + 24)
+        y = 928 + row * 19
+        assert pen.textlength(title, font=typeface("sans-bold", 13)) <= COL_W, f"compact {idx} too long: {title}"
+        pen.text((x, y), title, font=typeface("sans-bold", 13), fill=FG)
 
-img.save("/home/hatch/workspace/makefun/work-news-image-19-v6/entry.png", optimize=True)
+
+def draw_markets():
+    """Markets strip: verified 19 Nov close figures only."""
+    tickers = ("S&P 500 7,324 \u22120.23%  \u2022  NASDAQ 24,430 +0.42%  \u2022  "
+               "BRENT $89.59 \u22122.57%  \u2022  GOLD $3,740 \u22120.06%  \u2022  VIX 24.56 \u22123.53%")
+    centred(984, tickers, typeface("sans-bold", 13))
+
+
+def draw_footer():
+    """Single-line footer with date, title and sources."""
+    hline(1002)
+    centred(1008, "Thursday, 19 November 2026  \u2022  The Daily Globe  \u2022  "
+                  "Sources: Reuters, AP, BBC, NDTV, Al Jazeera, IAEA, EU Council",
+           typeface("sans", 12), GREY)
+
+
+draw_masthead()
+draw_lead()
+draw_art_band()
+draw_timeline()
+draw_briefs()
+draw_compact()
+draw_markets()
+draw_footer()
+
+page.save("/home/hatch/workspace/makefun/work-news-image-19-v6/entry.png", optimize=True)
 print("saved")
-print("stories:", 1 + len(BRIEFS) + len(COMPACT))
+print("stories:", 1 + len(STORIES) + len(HEADLINES_ONLY))
