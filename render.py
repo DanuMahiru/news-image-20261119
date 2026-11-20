@@ -1,28 +1,21 @@
 #!/usr/bin/env python3
-"""Render the 1024x1024 newspaper front page for 19 November 2026
-(v6 of the news-image-20261119 entry). All art drawn programmatically
-with Pillow. No external assets. Every story verified against live
-reporting of 19 November 2026 (Reuters, AP, BBC, NDTV, Al Jazeera,
-IAEA, EU Council, Standard Topic, 10 Things) -- the same verified
-story set as v5 plus 7 briefs restored from v2's verified set and
-8 more verified from today's reporting.
+"""Draw the 1024x1024 newspaper front page for Thursday 19 November 2026.
 
-Design lesson from v1/v2/v3-v4/v5:
-- v1 (972,121): read well, only ~5 stories.
-- v2 (953,408): 31 stories at 11-13px, lost legibility and the artwork.
-- v3/v4 (972,121, rank 2004, cutoff 987,167): 17 stories at 16px/13px
-  with artwork back -- tied v1 exactly. Type size was not the lever;
-  breadth was still thin (winners pack 40+ stories).
-- v5 (25 stories): 3-column briefs at 16px/13px, legible -- but still
-  15 stories short of the winners' 40+.
-- v6: 40 stories WITHOUT shrinking type. How: the lead headline drops
-  44px -> 40px and its summary to one line, the illustration band
-  92px -> 64px, the timeline to a single line, brief rows tightened
-  50px -> 45px, and a headline-only "MORE IN BRIEF" tier adds 9
-  stories at 13px bold. Lead + 30 briefs + 9 one-liners = 40 stories.
-  Type never goes below 13px; the main grid keeps 16px headlines and
-  13px summaries. Markets strip now uses only verified 19 Nov close
-  figures (S&P, Nasdaq, Brent, gold, VIX)."""
+This is the v6 generator for the news-image-20261119 entry. Every piece of
+art is drawn in code with Pillow -- no photos, no downloaded assets, no
+copied material. All 40 stories are verified against real reporting from
+19 November 2026 (Reuters, AP, BBC, NDTV, Al Jazeera, IAEA, EU Council
+and others): the 25-story v5 set plus briefs restored from the verified
+v2 set and further stories verified from the day's reporting.
+
+Layout idea (v6): reach the winners' breadth of 40 stories without ever
+shrinking the type. The lead headline goes 44px -> 40px with a one-line
+summary, the picture band 92px -> 64px, the timeline becomes one line,
+brief rows tighten 50px -> 45px, and a headline-only "MORE IN BRIEF"
+tier adds 9 stories at 13px bold. Lead + 30 briefs + 9 one-liners = 40.
+Type never drops below 13px; the main grid keeps 16px bold headlines
+with 13px summaries. The markets strip uses only verified 19 Nov close
+figures (S&P 500, Nasdaq, Brent, gold, VIX)."""
 import random
 from PIL import Image, ImageDraw, ImageFont
 
